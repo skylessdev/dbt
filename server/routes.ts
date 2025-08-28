@@ -4,6 +4,22 @@ import { storage } from "./storage";
 import { insertMessageSchema, snapshotSchema } from "@shared/schema";
 import { ProofGenerator } from "./lib/proof-generator";
 import { SymbolicEngine } from "./lib/symbolic-engine";
+import { EMBEDDINGS, DOMAIN } from "./lib/glyphs";
+import {
+  vectorDistance,
+  forbiddenTransition,
+  temporalResidualFromDistance,
+  logicResidualFromRule,
+  divergence as calcDiv,
+  verdictFromDivergence,
+  generateDBTReasons,
+} from "./lib/fraud";
+import { 
+  getIntegrity, 
+  getIntegrityDetails, 
+  updateIntegrity 
+} from "./lib/integrity";
+import { appendProof, getProofChain } from "./lib/proof";
 
 const proofGenerator = new ProofGenerator();
 const symbolicEngine = new SymbolicEngine();
@@ -275,6 +291,262 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch metrics" });
+    }
+  });
+
+  // 🔥 DBT API Endpoints - Enhanced Dual-Baseline Telemetry
+  app.post("/api/detect", async (req, res) => {
+    try {
+      const { 
+        from, 
+        to, 
+        actorA = 'user:A', 
+        actorB = 'user:B',
+        domain = DOMAIN
+      } = req.body as {
+        from: keyof typeof EMBEDDINGS;
+        to: keyof typeof EMBEDDINGS;
+        actorA?: string;
+        actorB?: string;
+        domain?: string;
+      };
+
+      if (!EMBEDDINGS[from] || !EMBEDDINGS[to]) {
+        return res.status(400).json({ 
+          error: "Invalid symbolic states", 
+          available: Object.keys(EMBEDDINGS) 
+        });
+      }
+
+      // Distance calculation (semantic pace proxy)
+      const dist = vectorDistance(EMBEDDINGS[from], EMBEDDINGS[to]);
+
+      // Baseline 1: Logic Verification
+      const isForbidden = forbiddenTransition(from, to);
+      const deltaLogic = logicResidualFromRule(isForbidden);
+
+      // Baseline 2: Temporal Adherence  
+      const deltaTemporal = temporalResidualFromDistance(dist);
+
+      // Delta baseline (Δ) & divergence calculation
+      const div = calcDiv(deltaLogic, deltaTemporal);
+      const verdict = verdictFromDivergence(deltaLogic, deltaTemporal, div);
+
+      // Get current actor integrities
+      const integrityA = getIntegrity(actorA, domain);
+      const integrityB = getIntegrity(actorB, domain);
+      const detailsA = getIntegrityDetails(actorA, domain);
+      const detailsB = getIntegrityDetails(actorB, domain);
+
+      // Generate comprehensive reasons using DBT framework
+      const reasons = generateDBTReasons(deltaLogic, deltaTemporal, div, from, to);
+
+      // Consensus strength: inverse of divergence, clamped to [0,1]
+      const consensusStrength = Math.max(0, Math.min(1, 1 - div));
+
+      res.json({
+        // Core metrics
+        dist,
+        delta: {
+          logicResidual: deltaLogic,
+          temporalResidual: deltaTemporal,
+          divergence: div,
+        },
+        verdict,
+        consensusStrength,
+        reasons,
+        
+        // Actor context
+        actors: {
+          [actorA]: {
+            integrity: integrityA,
+            interactions: detailsA?.interactionCount ?? 0,
+            averageDivergence: detailsA?.averageDivergence ?? 0.3,
+          },
+          [actorB]: {
+            integrity: integrityB,
+            interactions: detailsB?.interactionCount ?? 0,
+            averageDivergence: detailsB?.averageDivergence ?? 0.3,
+          },
+        },
+        
+        // DBT metadata
+        baselines: {
+          logic: {
+            name: 'Symbolic Consistency',
+            checks: [
+              {
+                id: 'forbidden_transition',
+                description: `Transition ${from}→${to}`,
+                pass: !isForbidden,
+                residual: deltaLogic,
+              }
+            ],
+          },
+          temporal: {
+            name: 'Pace Adherence',
+            expected: 'gradual semantic shift',
+            observed: dist,
+            normalizedDistance: deltaTemporal,
+            description: `Vector distance ${dist.toFixed(3)} normalized to residual ${deltaTemporal.toFixed(3)}`,
+          },
+        },
+        
+        // Timestamp for trend analysis
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.error("Error in DBT detection:", error);
+      res.status(500).json({ error: "Failed to perform DBT analysis" });
+    }
+  });
+
+  app.post("/api/transition", async (req, res) => {
+    try {
+      const { 
+        from, 
+        to, 
+        actorA = 'user:A', 
+        actorB = 'user:B',
+        domain = DOMAIN
+      } = req.body as {
+        from: keyof typeof EMBEDDINGS;
+        to: keyof typeof EMBEDDINGS;
+        actorA?: string;
+        actorB?: string;
+        domain?: string;
+      };
+
+      if (!EMBEDDINGS[from] || !EMBEDDINGS[to]) {
+        return res.status(400).json({ 
+          error: "Invalid symbolic states", 
+          available: Object.keys(EMBEDDINGS) 
+        });
+      }
+
+      // Calculate all DBT metrics
+      const dist = vectorDistance(EMBEDDINGS[from], EMBEDDINGS[to]);
+      const isForbidden = forbiddenTransition(from, to);
+      const deltaLogic = logicResidualFromRule(isForbidden);
+      const deltaTemporal = temporalResidualFromDistance(dist);
+      const div = calcDiv(deltaLogic, deltaTemporal);
+      const verdict = verdictFromDivergence(deltaLogic, deltaTemporal, div);
+
+      // Get pre-update integrities
+      const preIntegrityA = getIntegrity(actorA, domain);
+      const preIntegrityB = getIntegrity(actorB, domain);
+
+      // Generate comprehensive reasons
+      const reasons = generateDBTReasons(deltaLogic, deltaTemporal, div, from, to);
+
+      if (verdict === 'REJECT') {
+        // Update integrity even for rejected transitions (attempted invalid moves reveal behavior)
+        const postIntegrityA = updateIntegrity(actorA, domain, div);
+        const postIntegrityB = updateIntegrity(actorB, domain, Math.min(div * 0.3, 1)); // counterpart smaller effect
+        
+        return res.status(400).json({
+          ok: false,
+          error: 'Invalid transition rejected by Dual-Baseline Telemetry',
+          delta: {
+            logicResidual: deltaLogic,
+            temporalResidual: deltaTemporal,
+            divergence: div,
+          },
+          verdict,
+          reasons,
+          integrityUpdates: {
+            [actorA]: { before: preIntegrityA, after: postIntegrityA, change: postIntegrityA - preIntegrityA },
+            [actorB]: { before: preIntegrityB, after: postIntegrityB, change: postIntegrityB - preIntegrityB },
+          },
+          chainExtended: false,
+          timestamp: Date.now(),
+        });
+      }
+
+      // Valid transition: extend proof chain
+      const prevHash = globalThis.SKYLA_CHAIN?.length 
+        ? globalThis.SKYLA_CHAIN[globalThis.SKYLA_CHAIN.length - 1].hash 
+        : 'GENESIS';
+        
+      globalThis.SKYLA_CHAIN = appendProof(globalThis.SKYLA_CHAIN || [], {
+        from,
+        to,
+        delta: dist,
+        prevHash,
+        deltaLogic,
+        deltaTemporal,
+        divergence: div,
+      });
+
+      // Update integrities for valid transitions
+      const postIntegrityA = updateIntegrity(actorA, domain, div);
+      const postIntegrityB = updateIntegrity(actorB, domain, Math.min(div * 0.5, 1)); // symmetric but softer
+
+      const newProofNode = globalThis.SKYLA_CHAIN[globalThis.SKYLA_CHAIN.length - 1];
+
+      res.json({
+        ok: true,
+        newState: to,
+        proofHash: newProofNode.hash,
+        proofIndex: newProofNode.idx,
+        
+        // DBT core data
+        delta: {
+          logicResidual: deltaLogic,
+          temporalResidual: deltaTemporal,
+          divergence: div,
+        },
+        verdict,
+        consensusStrength: Math.max(0, Math.min(1, 1 - div)),
+        reasons,
+        
+        // Integrity tracking
+        integrityUpdates: {
+          [actorA]: { 
+            before: preIntegrityA, 
+            after: postIntegrityA, 
+            change: postIntegrityA - preIntegrityA 
+          },
+          [actorB]: { 
+            before: preIntegrityB, 
+            after: postIntegrityB, 
+            change: postIntegrityB - preIntegrityB 
+          },
+        },
+        
+        // Chain metadata
+        chainExtended: true,
+        chainLength: globalThis.SKYLA_CHAIN.length,
+        
+        // Verification data
+        baselines: {
+          logic: {
+            passed: !isForbidden,
+            residual: deltaLogic,
+            description: `Symbolic consistency: ${from}→${to}`,
+          },
+          temporal: {
+            residual: deltaTemporal,
+            rawDistance: dist,
+            description: `Pace adherence: normalized distance ${deltaTemporal.toFixed(3)}`,
+          },
+        },
+        
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      console.error("Error in DBT transition:", error);
+      res.status(500).json({ error: "Failed to process DBT transition" });
+    }
+  });
+
+  app.get("/api/proofchain", async (req, res) => {
+    try {
+      const chain = getProofChain();
+      res.json({ chain });
+    } catch (error) {
+      console.error("Error fetching proof chain:", error);
+      res.status(500).json({ error: "Failed to fetch proof chain" });
     }
   });
 

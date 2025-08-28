@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import ChatInterface from "@/components/chat-interface";
 import ProofPanel from "@/components/proof-panel";
 import CircuitStatus from "@/components/circuit-status";
@@ -62,6 +63,12 @@ export default function Home() {
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'hsl(var(--deep-purple))' }}></div>
                 <span className="text-sm font-mono" style={{ color: 'hsl(var(--deep-purple))' }}>CIRCUITS LOADED</span>
               </div>
+              <Link to="/demo">
+                <div className="flex items-center space-x-2 px-3 py-1 rounded border border-primary/30 hover:border-primary/60 transition-colors cursor-pointer">
+                  <div className="w-2 h-2 rounded-full bg-gradient-to-r from-green-400 to-blue-400 animate-pulse"></div>
+                  <span className="text-sm font-mono text-primary/80 hover:text-primary">DBT DEMO</span>
+                </div>
+              </Link>
             </div>
           </div>
         </div>
