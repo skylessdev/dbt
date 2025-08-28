@@ -1,0 +1,66 @@
+PROMPT FOR REPLIT AGENT:
+
+Task: Integrate Dual-Baseline Telemetry (DBT) into existing Skyla repository
+
+You are enhancing an existing Skyla demo with Dual-Baseline Telemetry - a system that measures consensus and subjectivity by comparing every interaction against two baselines: Logic Verification and Temporal Adherence. The difference becomes a measurable Delta (Δ) that quantifies divergence.
+
+Current State Analysis: The existing Skyla repo has basic fraud detection with vector distances and forbidden transitions. You need to upgrade this into a full DBT system with integrity tracking and delta visualization.
+
+Files to Replace/Enhance: I'm attaching 7 enhanced files that implement the complete DBT system. Your task is to:
+
+Back up existing files (create a backup branch or save current versions)
+
+Replace these exact files with the enhanced versions:
+
+apps/web/lib/fraud.ts → Enhanced with DBT primitives
+
+apps/web/lib/integrity.ts → New actor integrity tracking system
+
+apps/web/app/api/detect/route.ts → Returns full DBT analysis
+
+apps/web/app/api/transition/route.ts → Updates integrity + proof chain
+
+apps/web/components/AttackSimulator.tsx → Visual delta bars + integrity badges
+
+apps/web/components/ProofExplorer.tsx → Shows DBT metrics per proof node
+
+apps/web/app/demo/page.tsx → Polished layout with DBT explanation
+
+Update imports if needed (ensure all @/lib imports resolve correctly)
+
+Test the enhanced flow:
+
+Try chaos → peace (should show high Δ_logic, verdict REJECT)
+
+Try chaos → conflict (should show low deltas, verdict VALID, chain extends)
+
+Verify integrity badges update after each interaction
+
+Confirm proof explorer shows DBT fields per node
+
+Key Requirements:
+
+Maintain existing Next.js App Router structure
+
+Keep all existing API endpoints working (just enhanced with DBT data)
+
+Preserve proof chain continuity (existing chain should still render)
+
+Ensure the demo clearly shows "before vs after" DBT metrics
+
+Success Criteria:
+
+Demo runs without errors
+
+Attack Simulator shows dual baseline bars (Logic + Temporal)
+
+Integrity tracking works (actors get penalties for high divergence)
+
+Proof Explorer displays deltaLogic, deltaTemporal, divergence per node
+
+The system now literally runs on "measurable consensus vs subjectivity"
+
+Context: This transforms Skyla from a basic symbolic transition demo into a working Dual-Baseline Telemetry system - where every interaction generates provable measurements of how much it diverges from expected consensus. This makes disagreement mathematically verifiable rather than subjectively argued.
+
+Replace the files, test the flow, and ensure the enhanced demo clearly demonstrates DBT in action.
+
